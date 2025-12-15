@@ -1,67 +1,378 @@
+:root {
+    --bg-color: #ffffff;
+    --fg-color: #000000;
+    --border-color: #eeeeee;
+    --hover-bg-color: #f0f0f0;
+    --modal-bg: rgba(0, 0, 0, 0.5);
+    --text-light: #666;
+    --text-very-light: #999;
+    --break-color: #556B2F; /* 豆沙绿/暗橄榄绿 */
+    --danger-color: #D9534F;
+}
+
 body {
-    background-color: #ffffff;
-    color: #000000;
-    font-family: Arial, sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+    background-color: var(--bg-color);
+    color: var(--fg-color);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
+    overflow-x: hidden; /* Prevent horizontal scroll */
+    transition: background-color 0.5s ease;
 }
 
-#app {
-    text-align: center;
+body.is-break-time {
+    background-color: #F0FFF0;
 }
 
-#timer-container {
-    margin-bottom: 2rem;
+#app-container {
+    display: flex;
+    height: 100vh;
 }
 
-#timer-display {
-    font-size: 6rem;
-    font-weight: bold;
+/* --- Non-blocking Notification --- */
+#notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--fg-color);
+    color: var(--bg-color);
+    padding: 12px 20px;
+    border-radius: 6px;
+    z-index: 200;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s, visibility 0.5s, top 0.5s;
+}
+#notification.show {
+    opacity: 1;
+    visibility: visible;
+    top: 30px;
+}
+#notification.hidden {
+    visibility: hidden;
 }
 
-#timer-controls button {
-    font-size: 1rem;
-    padding: 0.5rem 1rem;
-    margin: 0 0.5rem;
-    border: 1px solid #000000;
-    background-color: #ffffff;
-    color: #000000;
-    cursor: pointer;
+
+/* --- 左侧信息区 --- */
+#info-panel {
+    width: 300px;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
-#timer-controls button:hover {
-    background-color: #000000;
-    color: #ffffff;
+#username-display {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 15px;
 }
 
-#task-container {
-    margin-bottom: 2rem;
+#stats {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    margin-bottom: 20px;
 }
 
-#task-input {
-    font-size: 1rem;
-    padding: 0.5rem;
-    width: 20rem;
-    border: 1px solid #000000;
+#stats p {
+    margin: 5px 0 0;
+}
+
+#history-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 #history-container h2 {
-    margin-bottom: 1rem;
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    font-weight: normal;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 #history-list {
     list-style: none;
     padding: 0;
-    max-height: 200px;
-    overflow-y: auto;
-    border: 1px solid #000;
-    padding: 10px;
+    margin: 0;
+    flex-grow: 1;
 }
 
 #history-list li {
-    margin-bottom: 0.5rem;
-    text-align: left;
+    padding: 10px 5px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-item-text {
+    flex-grow: 1;
+    font-size: 0.9rem;
+}
+.history-item-text .device {
+    font-size: 0.75rem;
+    color: var(--text-very-light);
+    display: block;
+    margin-top: 4px;
+}
+
+.history-item-controls button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    margin-left: 5px;
+}
+
+.history-item-controls svg {
+    width: 16px;
+    height: 16px;
+    fill: var(--text-very-light);
+}
+.history-item-controls button:hover svg {
+    fill: var(--fg-color);
+}
+
+
+#data-controls {
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between; /* Space them out evenly */
+    align-items: center;
+    gap: 5px; /* Smaller gap */
+}
+
+#data-controls button {
+    font-size: 0.85rem; /* Slightly smaller font for buttons */
+    padding: 8px 8px; /* Slightly smaller padding */
+    border: 1px solid var(--fg-color);
+    background-color: var(--bg-color);
+    color: var(--fg-color);
+    cursor: pointer;
+    flex-grow: 1; 
+    white-space: nowrap; /* Prevent text wrapping */
+}
+
+#data-controls button:hover {
+    background-color: var(--fg-color);
+    color: var(--bg-color);
+}
+
+#clear-cache-btn { 
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+#clear-cache-btn:hover {
+    background-color: var(--danger-color);
+    color: var(--bg-color);
+}
+
+
+/* --- 右侧主操作区 --- */
+#main-panel {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column; /* Center content vertically */
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+#motivational-text {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--fg-color);
+    margin-bottom: 20px;
+    height: 3rem; 
+}
+
+#timer-display {
+    font-size: 10rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.5s ease;
+}
+
+body.is-break-time #timer-display {
+    color: var(--break-color);
+}
+
+
+#task-container {
+    margin-bottom: 20px;
+    position: relative; /* For proper positioning of icon */
+    height: 3rem; /* Fixed height to prevent layout shifts */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#task-input {
+    font-size: 1.2rem;
+    padding: 0.5rem;
+    width: 80%;
+    max-width: 400px;
+    border: none;
+    border-bottom: 2px solid var(--border-color);
+    text-align: center;
+    background: transparent;
+    /* margin: 20px 0; Removed due to parent flex */
+}
+#task-input:focus {
+    outline: none;
+    border-bottom-color: var(--fg-color);
+}
+
+#break-activity-icon img { /* Targeting the img inside */
+    width: 48px;
+    height: 48px;
+    filter: invert(0%); /* Default to black/grayscale */
+    opacity: 0.8;
+}
+body.is-break-time #break-activity-icon img {
+    filter: invert(0%); /* Keep it black on break time too, or specify a filter for green */
+    /* Example for a green tint if needed: filter: sepia(100%) saturate(300%) hue-rotate(80deg); */
+}
+
+
+#timer-controls button {
+    font-size: 1.1rem;
+    padding: 10px 20px;
+    margin: 0 10px;
+    border: 1px solid var(--fg-color);
+    background-color: var(--bg-color);
+    color: var(--fg-color);
+    cursor: pointer;
+    min-width: 100px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+#timer-controls button:hover {
+    background-color: var(--fg-color);
+    color: var(--bg-color);
+}
+
+body.is-break-time #timer-controls button {
+    border-color: var(--break-color);
+    color: var(--break-color);
+}
+body.is-break-time #timer-controls button:hover {
+    background-color: var(--break-color);
+    color: var(--bg-color);
+}
+
+
+/* --- 设置 --- */
+#settings-icon {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    cursor: pointer;
+}
+#settings-icon svg {
+    width: 24px;
+    height: 24px;
+    fill: var(--text-light);
+}
+#settings-icon:hover svg {
+    fill: var(--fg-color);
+}
+
+#settings-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--modal-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+#settings-modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background-color: var(--bg-color);
+    padding: 30px;
+    border-radius: 8px;
+    width: 350px;
+}
+.modal-content h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+.setting-item {
+    margin-bottom: 15px;
+}
+.setting-item label {
+    display: block;
+    margin-bottom: 5px;
+}
+.setting-item input {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+.modal-content button {
+    margin-top: 10px;
+    font-size: 1rem;
+    padding: 8px 15px;
+    cursor: pointer;
+}
+
+/* --- Utility Class --- */
+.hidden {
+    display: none !important;
+}
+
+
+/* 响应式布局 for Mobile */
+@media (max-width: 768px) {
+    #app-container {
+        flex-direction: column;
+        height: auto; 
+        min-height: 100vh;
+        overflow-y: auto; 
+    }
+    #info-panel {
+        width: 100%;
+        height: auto; 
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 20px; 
+    }
+    #main-panel {
+        height: auto; 
+        flex-grow: 0; 
+        padding: 40px 0; 
+        min-height: 400px; 
+    }
+    #motivational-text {
+        font-size: 1.5rem; /* Adjusted for mobile */
+        height: auto; /* Allow height to adjust for potentially longer text */
+        min-height: 2rem;
+    }
+    #timer-display {
+        font-size: 6rem;
+    }
+    #task-container {
+        height: auto; /* Allow height to adjust for its content */
+        min-height: 3rem;
+    }
+    #task-input {
+        width: 90%;
+    }
 }
