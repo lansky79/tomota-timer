@@ -44,7 +44,7 @@ let state = {
         workMinutes: 25,
         breakMinutes: 5,
         username: 'Ethan',
-        birthDate: '1990-01-01',
+        birthDate: '1979-01-01',
         workText: "系统化的极致专注才能拿到结果",
         breakText: "身体是长期基础，放松身心和眼睛",
     },
