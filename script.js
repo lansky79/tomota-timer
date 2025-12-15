@@ -36,7 +36,9 @@ const appContainer = document.getElementById('app-container');
 let state = {
     timerInterval: null,
     reminderTimeout: null,
-    timeLeft: 25 * 60,
+    // totalDuration: The total length of the current session (work or break) in seconds
+    // timerStartTime: Date.now() when the timer last started or resumed
+    // pauseStartTime: Date.now() when the timer was paused
     isWorkTime: true,
     awaitingBreakStart: false,
     history: { PC: [], Mobile: [] }, // New data structure
@@ -44,11 +46,12 @@ let state = {
         workMinutes: 25,
         breakMinutes: 5,
         username: 'Ethan',
-        birthDate: '1979-01-01',
+        birthDate: '1990-01-01',
         workText: "系统化的极致专注才能拿到结果",
         breakText: "身体是长期基础，放松身心和眼睛",
     },
     isSoundUnlocked: false,
+    notificationPermission: 'default', // 'default', 'granted', 'denied'
 };
 
 // -------------------------------------------------------------------
@@ -71,6 +74,35 @@ function playSound(soundElement) {
             console.error("声音播放失败:", error);
             showNotification("（一条消息：声音播放被浏览器阻止）", 2000);
         });
+    }
+}
+
+async function requestNotificationPermission() {
+    if (!("Notification" in window)) {
+        console.warn("This browser does not support desktop notification");
+        return;
+    }
+    if (state.notificationPermission === 'granted') return; // Already granted
+
+    const permission = await Notification.requestPermission();
+    state.notificationPermission = permission;
+    if (permission === 'denied') {
+        console.warn("Notification permission denied.");
+        showNotification("通知权限被拒绝，将无法通过系统通知提醒。", 5000);
+    }
+}
+
+function showSystemNotification(message, soundUrl) {
+    if (state.notificationPermission === 'granted') {
+        const options = {
+            body: message,
+            icon: 'icon.png', // You might want to provide a small icon file
+            tag: 'pomodoro-timer', // Group notifications
+            renotify: true, // Renotify if a new one comes with the same tag
+        };
+        // Sound property for Notification is not standard/reliable, so we rely on playSound
+        // options.sound = soundUrl; 
+        new Notification('番茄钟', options);
     }
 }
 
@@ -111,6 +143,8 @@ function loadState() {
     breakDurationInput.value = state.settings.breakMinutes;
     workTextInput.value = state.settings.workText;
     breakTextInput.value = state.settings.breakText;
+    // Initialize notification permission state
+    state.notificationPermission = Notification.permission;
 }
 
 function saveData() {
@@ -139,7 +173,14 @@ function getCombinedHistory() {
 function render() {
     console.log("render: Updating UI...");
     document.body.classList.toggle('is-break-time', !state.isWorkTime && !state.awaitingBreakStart);
-    timerDisplay.textContent = formatTime(Math.max(0, state.timeLeft));
+    
+    // Calculate timeLeft based on actual elapsed time
+    if (state.timerInterval && state.timerStartTime) {
+        const elapsed = Date.now() - state.timerStartTime;
+        state.timeLeft = Math.max(0, state.totalDuration * 1000 - elapsed) / 1000;
+    }
+    
+    timerDisplay.textContent = formatTime(Math.max(0, Math.floor(state.timeLeft)));
 
     let displayMotivationalText = (state.isWorkTime && !state.awaitingBreakStart) ? state.settings.workText : state.settings.breakText;
     motivationalText.textContent = displayMotivationalText;
@@ -194,23 +235,34 @@ function updateStats() {
 }
 
 function tick() {
-    if (state.timeLeft < 0) return;
-    state.timeLeft--;
+    if (!state.timerStartTime) return; // Should not happen if interval is running
+
+    // Calculate elapsed time and update timeLeft
+    const elapsed = Date.now() - state.timerStartTime;
+    state.timeLeft = Math.max(0, state.totalDuration * 1000 - elapsed) / 1000;
+    
     render();
-    if (state.timeLeft < 0) {
+
+    if (state.timeLeft <= 0) { // Changed to <= 0 for consistency
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+        state.timerStartTime = null; // Clear start time
+
         if (state.isWorkTime) {
-            clearInterval(state.timerInterval);
-            state.timerInterval = null;
             playSound(workEndSound);
             addRecord('work');
+            showSystemNotification('番茄钟', '工作时间结束，休息一下！');
             showNotification('工作结束，点击任意处开始休息');
             taskInput.value = '';
             taskInput.placeholder = '活动活动，休息一下眼睛吧';
             state.awaitingBreakStart = true;
-            state.reminderTimeout = setTimeout(() => { if (state.awaitingBreakStart) playSound(workEndSound); }, 10000);
+            state.reminderTimeout = setTimeout(() => {
+                if (state.awaitingBreakStart) playSound(workEndSound);
+            }, 10000);
         } else {
             playSound(breakEndSound);
             addRecord('break');
+            showSystemNotification('番茄钟', '休息时间结束，开始工作！');
             showNotification('休息结束，准备开始新的工作吧！');
             resetTimer(true);
         }
@@ -218,14 +270,28 @@ function tick() {
 }
 
 function runTimer() {
-    if (state.timerInterval) return;
+    if (state.timerInterval) return; // Already running
+
+    // Set initial total duration if first start, or remaining time if resuming
+    if (!state.timerStartTime) { // First start of a session
+        state.totalDuration = state.isWorkTime ? state.settings.workMinutes * 60 : state.settings.breakMinutes * 60;
+        state.timerStartTime = Date.now();
+    } else { // Resuming from pause
+        // Adjust timerStartTime to account for pause duration
+        const pausedDuration = Date.now() - state.pauseStartTime;
+        state.timerStartTime += pausedDuration;
+    }
+
     startBtn.style.display = 'none';
     pauseBtn.style.display = 'inline-block';
     taskInput.disabled = true;
-    state.timerInterval = setInterval(tick, 1000);
+
+    state.timerInterval = setInterval(tick, 1000); // Now tick calculates based on elapsed
+    render(); // Initial render to update timeLeft immediately
 }
 
 function startTimer() {
+    requestNotificationPermission(); // Request permission on user interaction
     if (!state.isSoundUnlocked) {
         workEndSound.muted = true; breakEndSound.muted = true;
         workEndSound.play().then(() => {
@@ -241,10 +307,15 @@ function startTimer() {
 
 function handleScreenClickToStartBreak() {
     if (!state.awaitingBreakStart) return;
+
     state.awaitingBreakStart = false;
     clearTimeout(state.reminderTimeout);
+    
     state.isWorkTime = false;
-    state.timeLeft = state.settings.breakMinutes * 60;
+    // Reset total duration for break, and start time
+    state.totalDuration = state.settings.breakMinutes * 60;
+    state.timerStartTime = Date.now(); // Reset start time for the break
+    
     taskInput.placeholder = '您现在在做什么？';
     render();
     runTimer();
@@ -253,10 +324,13 @@ function handleScreenClickToStartBreak() {
 function pauseTimer() {
     clearInterval(state.timerInterval);
     state.timerInterval = null;
+    state.pauseStartTime = Date.now(); // Record pause time
+
     startBtn.textContent = '继续';
     startBtn.style.display = 'inline-block';
     pauseBtn.style.display = 'none';
     taskInput.disabled = false;
+    render(); // Update UI immediately after pause
 }
 
 function resetTimer(isHardReset = false) {
@@ -264,8 +338,13 @@ function resetTimer(isHardReset = false) {
     state.timerInterval = null;
     clearTimeout(state.reminderTimeout);
     state.awaitingBreakStart = false;
-    state.isWorkTime = true;
-    state.timeLeft = state.settings.workMinutes * 60;
+    
+    state.isWorkTime = true; // Always reset to work time
+    state.totalDuration = state.settings.workMinutes * 60; // Set total duration for work
+    state.timeLeft = state.totalDuration; // Display full work time
+    state.timerStartTime = null; // Clear start time
+    state.pauseStartTime = null; // Clear pause time
+
     startBtn.textContent = '开始';
     startBtn.style.display = 'inline-block';
     pauseBtn.style.display = 'none';
@@ -417,7 +496,7 @@ function init() {
     loadState();
     resetTimer(true);
     startBtn.addEventListener('click', startTimer);
-    pauseBtn.addEventListener('click', pauseBtn); // Updated this event listener from () => resetTimer(true) to pauseTimer
+    pauseBtn.addEventListener('click', pauseTimer);
     resetBtn.addEventListener('click', () => resetTimer(true));
     appContainer.addEventListener('click', handleScreenClickToStartBreak);
     settingsIcon.addEventListener('click', () => settingsModal.classList.remove('hidden'));
@@ -429,9 +508,14 @@ function init() {
     importFileInput.addEventListener('change', importData);
     clearCacheBtn.addEventListener('click', clearCache); // Bind to new function
 
+    // Initialize Notification permission status
+    if ("Notification" in window) {
+        state.notificationPermission = Notification.permission;
+    }
+
     setInterval(() => {
         usernameDisplay.textContent = `${state.settings.username}, ${calculateAge(state.settings.birthDate)} yr`;
-    }, 1000 * 60 * 60);
+    }, 1000 * 60 * 60); // Update age every hour
 }
 
 init();
