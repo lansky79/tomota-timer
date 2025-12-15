@@ -1,0 +1,67 @@
+body {
+    background-color: #ffffff;
+    color: #000000;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+#app {
+    text-align: center;
+}
+
+#timer-container {
+    margin-bottom: 2rem;
+}
+
+#timer-display {
+    font-size: 6rem;
+    font-weight: bold;
+}
+
+#timer-controls button {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    margin: 0 0.5rem;
+    border: 1px solid #000000;
+    background-color: #ffffff;
+    color: #000000;
+    cursor: pointer;
+}
+
+#timer-controls button:hover {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+#task-container {
+    margin-bottom: 2rem;
+}
+
+#task-input {
+    font-size: 1rem;
+    padding: 0.5rem;
+    width: 20rem;
+    border: 1px solid #000000;
+}
+
+#history-container h2 {
+    margin-bottom: 1rem;
+}
+
+#history-list {
+    list-style: none;
+    padding: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #000;
+    padding: 10px;
+}
+
+#history-list li {
+    margin-bottom: 0.5rem;
+    text-align: left;
+}

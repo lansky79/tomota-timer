@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>番茄钟</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="timer-container">
+            <div id="timer-display">25:00</div>
+            <div id="timer-controls">
+                <button id="start-btn">开始</button>
+                <button id="pause-btn" style="display: none;">暂停</button>
+                <button id="reset-btn">重置</button>
+            </div>
+        </div>
+        <div id="task-container">
+            <input type="text" id="task-input" placeholder="您现在在做什么？">
+        </div>
+        <div id="history-container">
+            <h2>历史记录</h2>
+            <ul id="history-list">
+                <!-- 历史记录将通过 JavaScript 动态插入 -->
+            </ul>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
