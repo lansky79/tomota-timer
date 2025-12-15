@@ -231,15 +231,15 @@ body.is-break-time #timer-display {
     border-bottom-color: var(--fg-color);
 }
 
-#break-activity-icon {
-    /* Style the icon container */
-}
-
-#break-activity-icon svg {
+#break-activity-icon img { /* Targeting the img inside */
     width: 48px;
     height: 48px;
-    fill: var(--break-color);
+    filter: invert(0%); /* Default to black/grayscale */
     opacity: 0.8;
+}
+body.is-break-time #break-activity-icon img {
+    filter: invert(0%); /* Keep it black on break time too, or specify a filter for green */
+    /* Example for a green tint if needed: filter: sepia(100%) saturate(300%) hue-rotate(80deg); */
 }
 
 
