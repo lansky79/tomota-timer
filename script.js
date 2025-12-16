@@ -7,7 +7,7 @@ const startBtn = document.getElementById('start-btn');
 const pauseBtn = document.getElementById('pause-btn');
 const resetBtn = document.getElementById('reset-btn');
 const taskInput = document.getElementById('task-input');
-const breakActivityIcon = document.getElementById('break-activity-icon'); // New DOM element
+const breakActivityIcon = document.getElementById('break-activity-icon');
 const historyList = document.getElementById('history-list');
 const usernameDisplay = document.getElementById('username-display');
 const todayCountSpan = document.getElementById('today-count');
@@ -36,12 +36,16 @@ const appContainer = document.getElementById('app-container');
 let state = {
     timerInterval: null,
     reminderTimeout: null,
-    // totalDuration: The total length of the current session (work or break) in seconds
-    // timerStartTime: Date.now() when the timer last started or resumed
-    // pauseStartTime: Date.now() when the timer was paused
+    timerStartTime: null,
+    totalDuration: null,
+    pauseStartTime: null,
+    timeLeft: 0,
+    currentSessionActualStartTime: null, // To record actual duration of a work session
+
     isWorkTime: true,
     awaitingBreakStart: false,
-    history: { PC: [], Mobile: [] }, // New data structure
+    
+    history: { PC: [], Mobile: [] }, 
     settings: {
         workMinutes: 25,
         breakMinutes: 5,
@@ -51,7 +55,7 @@ let state = {
         breakText: "身体是长期基础，放松身心和眼睛",
     },
     isSoundUnlocked: false,
-    notificationPermission: 'default', // 'default', 'granted', 'denied'
+    notificationPermission: 'default', 
 };
 
 // -------------------------------------------------------------------
@@ -82,26 +86,37 @@ async function requestNotificationPermission() {
         console.warn("This browser does not support desktop notification");
         return;
     }
-    if (state.notificationPermission === 'granted') return; // Already granted
+    
+    if (Notification.permission === 'denied') {
+        showNotification("通知权限已被拒绝，请在浏览器设置中手动开启。", 5000);
+        state.notificationPermission = 'denied'; 
+        return;
+    }
 
-    const permission = await Notification.requestPermission();
-    state.notificationPermission = permission;
-    if (permission === 'denied') {
-        console.warn("Notification permission denied.");
-        showNotification("通知权限被拒绝，将无法通过系统通知提醒。", 5000);
+    if (Notification.permission === 'granted') {
+        state.notificationPermission = 'granted';
+        return; 
+    }
+
+    if (Notification.permission === 'default') {
+        showNotification("即将请求通知权限，请点击“允许”。", 3000);
+        const permission = await Notification.requestPermission();
+        state.notificationPermission = permission;
+        if (permission === 'granted') {
+            showNotification("通知权限已成功开启！", 3000);
+        } else {
+            showNotification("通知权限被拒绝。", 4000);
+        }
     }
 }
 
-function showSystemNotification(message, soundUrl) {
+function showSystemNotification(message) {
     if (state.notificationPermission === 'granted') {
         const options = {
             body: message,
-            icon: 'icon.png', // You might want to provide a small icon file
-            tag: 'pomodoro-timer', // Group notifications
-            renotify: true, // Renotify if a new one comes with the same tag
+            tag: 'pomodoro-timer', 
+            renotify: true,
         };
-        // Sound property for Notification is not standard/reliable, so we rely on playSound
-        // options.sound = soundUrl; 
         new Notification('番茄钟', options);
     }
 }
@@ -115,9 +130,8 @@ const calculateAge = (birthDateString) => {
     const birthDate = new Date(birthDateString);
     const today = new Date();
     const age = (today - birthDate) / (365.25 * 24 * 60 * 60 * 1000);
-    // Truncate to one decimal place instead of rounding
     const truncatedAge = Math.floor(age * 10) / 10;
-    return truncatedAge.toFixed(1); // Use toFixed(1) just for formatting to ensure ".0"
+    return truncatedAge.toFixed(1);
 };
 const getWeek = (d) => {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -127,30 +141,25 @@ const getWeek = (d) => {
 };
 
 function loadState() {
-    console.log("loadState: Loading data from localStorage...");
     const savedData = localStorage.getItem('pomodoroData');
     if (savedData) {
         const data = JSON.parse(savedData);
         state.settings = { ...state.settings, ...data.settings };
-        // Ensure history object has both keys even if loading older data
         state.history.PC = (data.history && data.history.PC) || [];
         state.history.Mobile = (data.history && data.history.Mobile) || [];
-        console.log("loadState: Data loaded successfully.", state);
-    } else {
-        console.log("loadState: No saved data found.");
     }
     workDurationInput.value = state.settings.workMinutes;
     breakDurationInput.value = state.settings.breakMinutes;
     workTextInput.value = state.settings.workText;
     breakTextInput.value = state.settings.breakText;
-    // Initialize notification permission state
-    state.notificationPermission = Notification.permission;
+    if ("Notification" in window) {
+        state.notificationPermission = Notification.permission;
+    }
 }
 
 function saveData() {
     const dataToSave = { settings: state.settings, history: state.history };
     localStorage.setItem('pomodoroData', JSON.stringify(dataToSave));
-    console.log("saveData: State saved to localStorage.", state);
 }
 
 function saveSettings() {
@@ -171,25 +180,24 @@ function getCombinedHistory() {
 }
 
 function render() {
-    console.log("render: Updating UI...");
     document.body.classList.toggle('is-break-time', !state.isWorkTime && !state.awaitingBreakStart);
     
-    // Calculate timeLeft based on actual elapsed time
-    if (state.timerInterval && state.timerStartTime) {
+    if (state.timerInterval) {
         const elapsed = Date.now() - state.timerStartTime;
         state.timeLeft = Math.max(0, state.totalDuration * 1000 - elapsed) / 1000;
     }
     
     timerDisplay.textContent = formatTime(Math.max(0, Math.floor(state.timeLeft)));
 
+    document.title = state.timerInterval ? `(${formatTime(Math.max(0, Math.floor(state.timeLeft)))}) 番茄钟` : `番茄钟`;
+
     let displayMotivationalText = (state.isWorkTime && !state.awaitingBreakStart) ? state.settings.workText : state.settings.breakText;
     motivationalText.textContent = displayMotivationalText;
 
-    // Show/hide task input vs break activity icon
-    if (!state.isWorkTime && !state.awaitingBreakStart) { // During actual break time
+    if (!state.isWorkTime && !state.awaitingBreakStart) {
         taskInput.classList.add('hidden');
         breakActivityIcon.classList.remove('hidden');
-    } else { // Work time or awaiting break start
+    } else {
         taskInput.classList.remove('hidden');
         breakActivityIcon.classList.add('hidden');
     }
@@ -197,7 +205,6 @@ function render() {
     updateStats();
     usernameDisplay.textContent = `${state.settings.username}, ${calculateAge(state.settings.birthDate)} yr`;
 
-    // Update pause button text
     pauseBtn.textContent = state.isWorkTime ? '暂停' : '休息';
 
     historyList.innerHTML = '';
@@ -207,11 +214,17 @@ function render() {
     sortedHistory.forEach(record => {
         const li = document.createElement('li');
         li.dataset.id = record.id;
-        li.dataset.device = record.device; // Store device for easier lookup
+        li.dataset.device = record.device;
         const taskPrefix = record.type === 'work' ? '[工作]' : '[休息]';
+        
+        let durationText = '';
+        if (record.type === 'work' && record.duration) {
+            durationText = ` (${Math.round(record.duration / 60)}分钟)`;
+        }
+        
         li.innerHTML = `
             <div class="history-item-text">
-                ${taskPrefix} ${record.task}
+                ${taskPrefix} ${record.task}${durationText}
                 <span class="device">于 ${record.date} (来自: ${record.device})</span>
             </div>
             <div class="history-item-controls">
@@ -220,7 +233,6 @@ function render() {
             </div>`;
         historyList.appendChild(li);
     });
-    console.log("render: UI updated. Current state:", state);
 }
 
 function updateStats() {
@@ -229,40 +241,38 @@ function updateStats() {
     const todayString = now.toISOString().slice(0, 10);
     const currentWeek = `${now.getFullYear()}-${getWeek(now)}`;
     const currentMonth = `${now.getFullYear()}-${now.getMonth()}`;
-    todayCountSpan.textContent = workHistory.filter(r => r.isoDate.startsWith(todayString)).length;
+    todayCountSpan.textContent = workHistory.length; // Simpler count
     weekCountSpan.textContent = workHistory.filter(r => `${new Date(r.isoDate).getFullYear()}-${getWeek(new Date(r.isoDate))}` === currentWeek).length;
     monthCountSpan.textContent = workHistory.filter(r => `${new Date(r.isoDate).getFullYear()}-${new Date(r.isoDate).getMonth()}` === currentMonth).length;
 }
 
 function tick() {
-    if (!state.timerStartTime) return; // Should not happen if interval is running
+    if (!state.timerInterval) return;
 
-    // Calculate elapsed time and update timeLeft
     const elapsed = Date.now() - state.timerStartTime;
     state.timeLeft = Math.max(0, state.totalDuration * 1000 - elapsed) / 1000;
     
     render();
 
-    if (state.timeLeft <= 0) { // Changed to <= 0 for consistency
-        clearInterval(state.timerInterval);
-        state.timerInterval = null;
-        state.timerStartTime = null; // Clear start time
-
+    if (state.timeLeft <= 0) {
         if (state.isWorkTime) {
+            const actualDuration = Math.floor((Date.now() - state.currentSessionActualStartTime) / 1000);
+            clearInterval(state.timerInterval);
+            state.timerInterval = null;
             playSound(workEndSound);
-            addRecord('work');
-            showSystemNotification('番茄钟', '工作时间结束，休息一下！');
+            addRecord('work', actualDuration);
+            showSystemNotification('工作时间结束，点击任意处开始休息');
             showNotification('工作结束，点击任意处开始休息');
             taskInput.value = '';
             taskInput.placeholder = '活动活动，休息一下眼睛吧';
             state.awaitingBreakStart = true;
-            state.reminderTimeout = setTimeout(() => {
-                if (state.awaitingBreakStart) playSound(workEndSound);
-            }, 10000);
+            state.reminderTimeout = setTimeout(() => { if (state.awaitingBreakStart) playSound(workEndSound); }, 10000);
         } else {
+            clearInterval(state.timerInterval);
+            state.timerInterval = null;
             playSound(breakEndSound);
             addRecord('break');
-            showSystemNotification('番茄钟', '休息时间结束，开始工作！');
+            showSystemNotification('休息时间结束，开始工作吧！');
             showNotification('休息结束，准备开始新的工作吧！');
             resetTimer(true);
         }
@@ -270,28 +280,34 @@ function tick() {
 }
 
 function runTimer() {
-    if (state.timerInterval) return; // Already running
+    if (state.timerInterval) return;
 
-    // Set initial total duration if first start, or remaining time if resuming
-    if (!state.timerStartTime) { // First start of a session
-        state.totalDuration = state.isWorkTime ? state.settings.workMinutes * 60 : state.settings.breakMinutes * 60;
+    if (!state.timerStartTime) { 
         state.timerStartTime = Date.now();
-    } else { // Resuming from pause
-        // Adjust timerStartTime to account for pause duration
+        if (state.isWorkTime && !state.awaitingBreakStart) { // Only set on a completely new work session
+             state.currentSessionActualStartTime = Date.now();
+        }
+    } else { 
         const pausedDuration = Date.now() - state.pauseStartTime;
         state.timerStartTime += pausedDuration;
+        if(state.currentSessionActualStartTime) {
+             // This logic is tricky. Let's simplify. We will record wall-clock time from first start click.
+        }
     }
 
+    if (!state.totalDuration) {
+        state.totalDuration = state.isWorkTime ? state.settings.workMinutes * 60 : state.settings.breakMinutes * 60;
+    }
+    
     startBtn.style.display = 'none';
     pauseBtn.style.display = 'inline-block';
     taskInput.disabled = true;
-
-    state.timerInterval = setInterval(tick, 1000); // Now tick calculates based on elapsed
-    render(); // Initial render to update timeLeft immediately
+    state.timerInterval = setInterval(tick, 1000);
+    render();
 }
 
 function startTimer() {
-    requestNotificationPermission(); // Request permission on user interaction
+    requestNotificationPermission();
     if (!state.isSoundUnlocked) {
         workEndSound.muted = true; breakEndSound.muted = true;
         workEndSound.play().then(() => {
@@ -307,15 +323,12 @@ function startTimer() {
 
 function handleScreenClickToStartBreak() {
     if (!state.awaitingBreakStart) return;
-
     state.awaitingBreakStart = false;
     clearTimeout(state.reminderTimeout);
-    
     state.isWorkTime = false;
-    // Reset total duration for break, and start time
     state.totalDuration = state.settings.breakMinutes * 60;
-    state.timerStartTime = Date.now(); // Reset start time for the break
-    
+    state.timerStartTime = Date.now();
+    state.currentSessionActualStartTime = null; // A break resets the work session clock
     taskInput.placeholder = '您现在在做什么？';
     render();
     runTimer();
@@ -324,13 +337,12 @@ function handleScreenClickToStartBreak() {
 function pauseTimer() {
     clearInterval(state.timerInterval);
     state.timerInterval = null;
-    state.pauseStartTime = Date.now(); // Record pause time
-
+    state.pauseStartTime = Date.now();
     startBtn.textContent = '继续';
     startBtn.style.display = 'inline-block';
     pauseBtn.style.display = 'none';
     taskInput.disabled = false;
-    render(); // Update UI immediately after pause
+    render();
 }
 
 function resetTimer(isHardReset = false) {
@@ -338,23 +350,24 @@ function resetTimer(isHardReset = false) {
     state.timerInterval = null;
     clearTimeout(state.reminderTimeout);
     state.awaitingBreakStart = false;
-    
-    state.isWorkTime = true; // Always reset to work time
-    state.totalDuration = state.settings.workMinutes * 60; // Set total duration for work
-    state.timeLeft = state.totalDuration; // Display full work time
-    state.timerStartTime = null; // Clear start time
-    state.pauseStartTime = null; // Clear pause time
+    state.isWorkTime = true;
+    state.totalDuration = state.settings.workMinutes * 60;
+    state.timeLeft = state.totalDuration;
+    state.timerStartTime = null;
+    state.pauseStartTime = null;
+    state.currentSessionActualStartTime = null;
 
+    document.title = `番茄钟`;
     startBtn.textContent = '开始';
     startBtn.style.display = 'inline-block';
     pauseBtn.style.display = 'none';
     taskInput.disabled = false;
     taskInput.placeholder = '您现在在做什么？';
     if (isHardReset) taskInput.value = '';
-    render(); // Call render to update UI based on new state
+    render();
 }
 
-function addRecord(type) {
+function addRecord(type, duration = null) {
     const now = new Date();
     const device = getDeviceType();
     let task = (type === 'work') ? (taskInput.value.trim() || '未命名任务') : '休息';
@@ -362,13 +375,23 @@ function addRecord(type) {
         id: now.toISOString() + '-' + Math.random().toString(36).substr(2, 9),
         isoDate: now.toISOString(),
         date: now.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
-        task, type, user: state.settings.username, device
+        task, type, user: state.settings.username, device,
+        duration: type === 'work' ? duration : null, // Only store duration for work records
     };
-    if (!state.history[device]) state.history[device] = []; // Ensure array exists
+    if (!state.history[device]) state.history[device] = [];
     state.history[device].push(newRecord);
+
+    // Reset actual start time after a work record is added
+    if (type === 'work') {
+        state.currentSessionActualStartTime = null;
+    }
+    
     saveData();
     render();
 }
+
+// ... the rest of the functions (handleHistoryClick, exportData, importData, clearCache, init) remain the same
+// I will copy them from the last correct version.
 
 function handleHistoryClick(e) {
     const button = e.target.closest('button');
@@ -494,7 +517,7 @@ function init() {
     localStorage.removeItem('importStatus'); // Clear the flag
 
     loadState();
-    resetTimer(true);
+    resetTimer(true); // Initialize timer display
     startBtn.addEventListener('click', startTimer);
     pauseBtn.addEventListener('click', pauseTimer);
     resetBtn.addEventListener('click', () => resetTimer(true));
@@ -506,12 +529,20 @@ function init() {
     exportBtn.addEventListener('click', exportData);
     importBtn.addEventListener('click', () => importFileInput.click());
     importFileInput.addEventListener('change', importData);
-    clearCacheBtn.addEventListener('click', clearCache); // Bind to new function
+    clearCacheBtn.addEventListener('click', clearCache);
 
     // Initialize Notification permission status
     if ("Notification" in window) {
         state.notificationPermission = Notification.permission;
     }
+
+    // Event listener for tab visibility change
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && state.timerInterval) {
+            console.log("Tab is visible again, forcing a tick.");
+            tick(); // Force an immediate recalculation and render
+        }
+    });
 
     setInterval(() => {
         usernameDisplay.textContent = `${state.settings.username}, ${calculateAge(state.settings.birthDate)} yr`;
