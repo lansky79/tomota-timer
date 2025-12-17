@@ -8,6 +8,9 @@
     --text-very-light: #999;
     --break-color: #556B2F; /* 豆沙绿/暗橄榄绿 */
     --danger-color: #D9534F;
+    --progress-bg-color: #e0e0e0;
+    --progress-fill-color: #000000;
+    --progress-fill-break-color: var(--break-color);
 }
 
 body {
@@ -80,11 +83,44 @@ body.is-break-time {
     margin: 5px 0 0;
 }
 
+#goal-container {
+    margin-top: 15px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 15px;
+}
+
+#goal-text {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--fg-color);
+}
+
+#goal-progress-bar-container {
+    width: 100%;
+    background-color: var(--progress-bg-color);
+    border-radius: 5px;
+    height: 10px;
+    overflow: hidden;
+}
+
+#goal-progress-bar {
+    height: 100%;
+    width: 0%;
+    background-color: var(--progress-fill-color);
+    border-radius: 5px;
+    transition: width 0.3s ease-in-out;
+}
+
+
 #history-container {
     flex-grow: 1;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    margin-top: 20px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 15px;
 }
 
 #history-container h2 {
@@ -206,10 +242,33 @@ body.is-break-time #timer-display {
 }
 
 
+#time-progress-bar-container {
+    width: 80%; /* Match task-input width */
+    max-width: 400px; /* Match task-input max-width */
+    background-color: var(--progress-bg-color);
+    border-radius: 2px;
+    height: 4px; /* Thin progress bar */
+    overflow: hidden;
+    margin-top: 15px; /* Space between timer and progress */
+    margin-bottom: 20px; /* Space between progress and task/icon */
+}
+
+#time-progress-bar {
+    height: 100%;
+    width: 0%;
+    background-color: var(--progress-fill-color);
+    border-radius: 2px;
+    transition: width 0.1s linear; /* Smooth transition */
+}
+body.is-break-time #time-progress-bar {
+    background-color: var(--progress-fill-break-color);
+}
+
+
 #task-container {
-    margin-bottom: 20px;
-    position: relative; /* For proper positioning of icon */
-    height: 3rem; /* Fixed height to prevent layout shifts */
+    /* margin-bottom: 20px; This margin moved to time-progress-bar-container */
+    position: relative; 
+    height: 3rem; 
     display: flex;
     justify-content: center;
     align-items: center;
@@ -224,7 +283,6 @@ body.is-break-time #timer-display {
     border-bottom: 2px solid var(--border-color);
     text-align: center;
     background: transparent;
-    /* margin: 20px 0; Removed due to parent flex */
 }
 #task-input:focus {
     outline: none;
@@ -239,7 +297,6 @@ body.is-break-time #timer-display {
 }
 body.is-break-time #break-activity-icon img {
     filter: invert(0%); /* Keep it black on break time too, or specify a filter for green */
-    /* Example for a green tint if needed: filter: sepia(100%) saturate(300%) hue-rotate(80deg); */
 }
 
 
@@ -368,8 +425,13 @@ body.is-break-time #timer-controls button:hover {
     #timer-display {
         font-size: 6rem;
     }
+    #time-progress-bar-container {
+        width: 90%; /* Adjust width for mobile */
+        margin-top: 10px;
+        margin-bottom: 15px;
+    }
     #task-container {
-        height: auto; /* Allow height to adjust for its content */
+        height: auto; 
         min-height: 3rem;
     }
     #task-input {

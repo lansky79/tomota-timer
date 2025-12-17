@@ -16,9 +16,13 @@
             <div id="user-info">
                 <h1 id="username-display">Ethan</h1>
                 <div id="stats">
-                    <p>今日已完成: <span id="today-count">0</span></p>
-                    <p>本周已完成: <span id="week-count">0</span></p>
-                    <p>本月已完成: <span id="month-count">0</span></p>
+                    <!-- Removed old stats -->
+                    <div id="goal-container">
+                        <div id="goal-text">当日目标: <span id="completed-count">0</span> / <span id="daily-goal-count">8</span></div>
+                        <div id="goal-progress-bar-container">
+                            <div id="goal-progress-bar"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="history-container">
@@ -40,6 +44,9 @@
             <div id="timer-container">
                 <div id="motivational-text"></div>
                 <div id="timer-display">25:00</div>
+                <div id="time-progress-bar-container">
+                    <div id="time-progress-bar"></div>
+                </div>
                 <div id="task-container">
                     <input type="text" id="task-input" placeholder="您现在在做什么？">
                     <img id="break-activity-icon" src="pics/wushu.svg" alt="休息活动图标" class="hidden">
@@ -56,7 +63,7 @@
         <div id="settings-icon">
             <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" fill="currentColor">
                 <path d="M0 0h24v24H0z" fill="none"/>
-                <path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69-.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12-.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52-.4 1.08-.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23-.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/>
+                <path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69-.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s-.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12-.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23-.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/>
             </svg>
         </div>
 
@@ -79,6 +86,14 @@
                 <div class="setting-item">
                     <label for="break-text">休息时显示文字:</label>
                     <input type="text" id="break-text">
+                </div>
+                <div class="setting-item">
+                    <label for="birth-date-input">出生日期:</label>
+                    <input type="date" id="birth-date-input">
+                </div>
+                <div class="setting-item">
+                    <label for="daily-goal-input">每日目标番茄钟数:</label>
+                    <input type="number" id="daily-goal-input" min="1">
                 </div>
                 <button id="save-settings-btn">保存</button>
                 <button id="close-settings-btn">关闭</button>
