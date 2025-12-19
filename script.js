@@ -75,12 +75,17 @@ function showNotification(message, duration = 3000) {
 
 function playSound(soundElement) {
     if (!soundElement || !state.isSoundUnlocked) return;
+
+    // Pause the sound first in case it's already playing from a reminder
+    soundElement.pause();
     soundElement.currentTime = 0;
+
     const promise = soundElement.play();
     if (promise !== undefined) {
         promise.catch(error => {
             console.error("声音播放失败:", error);
-            showNotification("（一条消息：声音播放被浏览器阻止）", 2000);
+            // The user might not see the console, so a visible notification is important.
+            showNotification("（一条消息：声音播放被浏览器阻止或失败）", 3000);
         });
     }
 }
@@ -144,6 +149,24 @@ const getWeek = (d) => {
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 };
 
+// Function to truncate string to a specified length (Chinese characters)
+const truncateChineseString = (str, maxLength) => {
+    if (!str) return '';
+    let len = 0;
+    for (let i = 0; i < str.length; i++) {
+        // Check if character is a Chinese character (common range)
+        if (str.charCodeAt(i) > 255) { 
+            len += 1;
+        } else {
+            len += 1; // Assuming 1 for non-Chinese characters for simplicity as the request is about "Chinese characters"
+        }
+        if (len > maxLength) {
+            return str.substring(0, i) + '...';
+        }
+    }
+    return str;
+};
+
 function loadState() {
     console.log("loadState: Loading data from localStorage...");
     const savedData = localStorage.getItem('pomodoroData');
@@ -194,13 +217,16 @@ function getCombinedHistory() {
 
 function render() {
     document.body.classList.toggle('is-break-time', !state.isWorkTime && !state.awaitingBreakStart);
+    document.body.classList.toggle('timer-active', !!state.timerInterval);
     
     // This calculation is now done inside tick(), render just displays
     timerDisplay.textContent = formatTime(Math.max(0, Math.floor(state.timeLeft)));
 
     document.title = state.timerInterval ? `(${formatTime(Math.max(0, Math.floor(state.timeLeft)))}) 番茄钟` : `番茄钟`;
 
-    motivationalText.textContent = (state.isWorkTime && !state.awaitingBreakStart) ? state.settings.workText : state.settings.breakText;
+    motivationalText.textContent = (state.isWorkTime && !state.awaitingBreakStart) 
+        ? truncateChineseString(state.settings.workText, 50) 
+        : truncateChineseString(state.settings.breakText, 50);
 
     if (!state.isWorkTime && !state.awaitingBreakStart) {
         taskInput.classList.add('hidden');
@@ -211,7 +237,6 @@ function render() {
     }
 
     usernameDisplay.textContent = `${state.settings.username}, ${calculateAge(state.settings.birthDate)} yr`;
-    pauseBtn.textContent = state.isWorkTime ? '暂停' : '休息';
 
     // Goal Display
     const currentDayWorkRecords = getCombinedHistory().filter(r => 
@@ -227,6 +252,22 @@ function render() {
     const totalCurrentSessionDuration = state.isWorkTime ? state.settings.workMinutes * 60 : state.settings.breakMinutes * 60;
     const progressPercentage = state.totalDuration ? ((state.totalDuration - state.timeLeft) / state.totalDuration) * 100 : 0;
     timeProgressBar.style.width = `${Math.min(100, progressPercentage)}%`;
+
+
+    // --- Centralized Button Logic ---
+    if (state.awaitingBreakStart) {
+        startBtn.textContent = '休息';
+        startBtn.style.display = 'inline-block';
+        pauseBtn.style.display = 'none';
+    } else if (state.timerInterval) { // Timer is running
+        startBtn.style.display = 'none';
+        pauseBtn.style.display = 'inline-block';
+        pauseBtn.textContent = '暂停';
+    } else { // Timer is paused or stopped
+        // The text content ('开始' or '继续') is set in pauseTimer and resetTimer
+        startBtn.style.display = 'inline-block';
+        pauseBtn.style.display = 'none';
+    }
 
 
     historyList.innerHTML = '';
@@ -246,7 +287,7 @@ function render() {
         
         li.innerHTML = `
             <div class="history-item-text">
-                ${taskPrefix} ${record.task}${durationText}
+                ${taskPrefix} ${truncateChineseString(record.task, 20)}${durationText}
                 <span class="device">于 ${record.date} (来自: ${record.device})</span>
             </div>
             <div class="history-item-controls">
@@ -267,17 +308,17 @@ function tick() {
 
     if (state.timeLeft <= 0) {
         if (state.isWorkTime) {
-            const actualDuration = Math.floor((Date.now() - state.currentSessionActualStartTime) / 1000);
+            // NOTE: Recording is now deferred until the user clicks to start the break.
             clearInterval(state.timerInterval);
             state.timerInterval = null;
             playSound(workEndSound);
-            addRecord('work', actualDuration);
-            showSystemNotification('工作时间结束，点击任意处开始休息');
-            showNotification('工作结束，点击任意处开始休息');
+            showSystemNotification('工作时间结束，点击“休息”开始放松');
+            showNotification('工作结束，点击“休息”开始放松');
             taskInput.value = '';
             taskInput.placeholder = '活动活动，休息一下眼睛吧';
             state.awaitingBreakStart = true;
             state.reminderTimeout = setTimeout(() => { if (state.awaitingBreakStart) playSound(workEndSound); }, 10000);
+            render(); // Update UI to show 'Rest' button
         } else {
             clearInterval(state.timerInterval);
             state.timerInterval = null;
@@ -295,7 +336,7 @@ function runTimer() {
 
     if (!state.timerStartTime) { 
         state.timerStartTime = Date.now();
-        if (state.isWorkTime) {
+        if (state.isWorkTime && !state.currentSessionActualStartTime) {
             state.currentSessionActualStartTime = Date.now();
         }
     } else { 
@@ -307,8 +348,6 @@ function runTimer() {
         state.totalDuration = state.isWorkTime ? state.settings.workMinutes * 60 : state.settings.breakMinutes * 60;
     }
     
-    startBtn.style.display = 'none';
-    pauseBtn.style.display = 'inline-block';
     taskInput.disabled = true;
     state.timerInterval = setInterval(tick, 1000);
     render();
@@ -329,21 +368,37 @@ function startTimer() {
     runTimer();
 }
 
-function handleScreenClickToStartBreak() {
+function startBreak() {
     if (!state.awaitingBreakStart) return;
+    
+    // 1. Finalize and record the completed work session
+    const actualDuration = Math.floor((Date.now() - state.currentSessionActualStartTime) / 1000);
+    addRecord('work', actualDuration);
+    
+    // 2. Reset state for the upcoming break
     state.awaitingBreakStart = false;
     clearTimeout(state.reminderTimeout);
-    
     addRecord('break_start'); 
-
     state.isWorkTime = false;
     state.totalDuration = state.settings.breakMinutes * 60;
-    state.timerStartTime = Date.now();
-    state.currentSessionActualStartTime = null; 
-    
+    state.timeLeft = state.totalDuration;
+    state.timerStartTime = null;
+    state.pauseStartTime = null;
+    state.currentSessionActualStartTime = null; // Clear work session start time
+
+    // 3. Update UI and start the break timer
     taskInput.placeholder = '您现在在做什么？';
     render();
     runTimer();
+}
+
+
+function startBtnHandler() {
+    if (state.awaitingBreakStart) {
+        startBreak();
+    } else {
+        startTimer();
+    }
 }
 
 function pauseTimer() {
@@ -351,8 +406,6 @@ function pauseTimer() {
     state.timerInterval = null;
     state.pauseStartTime = Date.now();
     startBtn.textContent = '继续';
-    startBtn.style.display = 'inline-block';
-    pauseBtn.style.display = 'none';
     taskInput.disabled = false;
     render();
 }
@@ -372,8 +425,6 @@ function resetTimer(isHardReset = false) {
 
     document.title = `番茄钟`;
     startBtn.textContent = '开始';
-    startBtn.style.display = 'inline-block';
-    pauseBtn.style.display = 'none';
     taskInput.disabled = false;
     taskInput.placeholder = '您现在在做什么？';
     if (isHardReset) taskInput.value = '';
@@ -521,10 +572,9 @@ function init() {
 
     loadState();
     resetTimer(true);
-    startBtn.addEventListener('click', startTimer);
+    startBtn.addEventListener('click', startBtnHandler);
     pauseBtn.addEventListener('click', pauseTimer);
     resetBtn.addEventListener('click', () => resetTimer(true));
-    appContainer.addEventListener('click', handleScreenClickToStartBreak);
     settingsIcon.addEventListener('click', () => settingsModal.classList.remove('hidden'));
     closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
     saveSettingsBtn.addEventListener('click', () => { saveSettings(); settingsModal.classList.add('hidden'); });
@@ -533,6 +583,14 @@ function init() {
     importBtn.addEventListener('click', () => importFileInput.click());
     importFileInput.addEventListener('change', importData);
     clearCacheBtn.addEventListener('click', clearCache);
+
+    taskInput.addEventListener('input', () => {
+        if (taskInput.value.trim() !== '') {
+            taskInput.classList.add('has-content');
+        } else {
+            taskInput.classList.remove('has-content');
+        }
+    });
 
     if ("Notification" in window) {
         state.notificationPermission = Notification.permission;

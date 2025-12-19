@@ -18,7 +18,7 @@ body {
     color: var(--fg-color);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
-    overflow-x: hidden; /* Prevent horizontal scroll */
+    overflow-x: hidden;
     transition: background-color 0.5s ease;
 }
 
@@ -55,7 +55,6 @@ body.is-break-time {
     visibility: hidden;
 }
 
-
 /* --- 左侧信息区 --- */
 #info-panel {
     width: 300px;
@@ -77,10 +76,6 @@ body.is-break-time {
     font-size: 0.9rem;
     color: var(--text-light);
     margin-bottom: 20px;
-}
-
-#stats p {
-    margin: 5px 0 0;
 }
 
 #goal-container {
@@ -151,6 +146,8 @@ body.is-break-time {
 .history-item-text {
     flex-grow: 1;
     font-size: 0.9rem;
+    white-space: normal;
+    word-break: break-all;
 }
 .history-item-text .device {
     font-size: 0.75rem;
@@ -181,20 +178,20 @@ body.is-break-time {
     padding-top: 15px;
     border-top: 1px solid var(--border-color);
     display: flex;
-    justify-content: space-between; /* Space them out evenly */
+    justify-content: space-between;
     align-items: center;
-    gap: 5px; /* Smaller gap */
+    gap: 5px;
 }
 
 #data-controls button {
-    font-size: 0.85rem; /* Slightly smaller font for buttons */
-    padding: 8px 8px; /* Slightly smaller padding */
+    font-size: 0.85rem;
+    padding: 8px 8px;
     border: 1px solid var(--fg-color);
     background-color: var(--bg-color);
     color: var(--fg-color);
     cursor: pointer;
     flex-grow: 1; 
-    white-space: nowrap; /* Prevent text wrapping */
+    white-space: nowrap;
 }
 
 #data-controls button:hover {
@@ -212,14 +209,17 @@ body.is-break-time {
 }
 
 
-/* --- 右侧主操作区 --- */
+/* --- 右侧主操作区 (MODIFIED) --- */
 #main-panel {
     flex-grow: 1;
     display: flex;
-    flex-direction: column; /* Center content vertically */
-    justify-content: center;
+    flex-direction: column;
+    justify-content: flex-start; /* Pushed to top */
+    padding-top: 15vh; /* Vertical offset */
     align-items: center;
     text-align: center;
+    position: relative; /* For absolute positioning children */
+    padding-bottom: 80px; /* Space for buttons at the bottom */
 }
 
 #motivational-text {
@@ -227,9 +227,7 @@ body.is-break-time {
     font-weight: 600;
     color: var(--fg-color);
     margin-bottom: 20px;
-    height: 3rem; 
 }
-
 #timer-display {
     font-size: 10rem;
     font-weight: 600;
@@ -241,16 +239,63 @@ body.is-break-time #timer-display {
     color: var(--break-color);
 }
 
+/* This is the new container for the input and the progress bar that will replace its underline */
+#task-and-progress-container {
+    position: relative;
+    width: 95%;
+    max-width: 1300px; /* Wider for ~20 chars */
+    margin: 20px auto;
+}
+
+#task-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: auto; /* Allow height to be determined by content */
+}
+
+#task-input {
+    font-size: 2rem; /* Match motivational text */
+    font-weight: 600; /* Match motivational text */
+    padding: 0.5rem 1rem;
+    width: 100%;
+    border: none;
+    border-bottom: 2px solid var(--border-color);
+    text-align: center;
+    background: transparent;
+    box-sizing: border-box;
+    color: var(--fg-color); /* Set to black */
+}
+
+#task-input:focus {
+    outline: none;
+    border-bottom-color: var(--fg-color);
+}
+
+#task-input.has-content {
+    font-size: 2rem; /* Ensure size stays the same */
+    font-weight: 600; /* Ensure weight stays the same */
+    color: var(--fg-color); /* Ensure color stays black */
+}
+
+#task-input::placeholder {
+    font-size: 2rem; /* Match input */
+    font-weight: 600; /* Match input */
+    color: var(--text-very-light);
+    opacity: 1; /* Ensure full opacity */
+}
 
 #time-progress-bar-container {
-    width: 80%; /* Match task-input width */
-    max-width: 400px; /* Match task-input max-width */
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
     background-color: var(--progress-bg-color);
     border-radius: 2px;
-    height: 4px; /* Thin progress bar */
+    height: 4px; /* Thicker progress bar */
     overflow: hidden;
-    margin-top: 15px; /* Space between timer and progress */
-    margin-bottom: 20px; /* Space between progress and task/icon */
+    display: none; /* Hidden by default */
 }
 
 #time-progress-bar {
@@ -258,58 +303,40 @@ body.is-break-time #timer-display {
     width: 0%;
     background-color: var(--progress-fill-color);
     border-radius: 2px;
-    transition: width 0.1s linear; /* Smooth transition */
+    transition: width 0.1s linear;
 }
+
 body.is-break-time #time-progress-bar {
     background-color: var(--progress-fill-break-color);
 }
 
+#break-activity-icon {
+    /* ... */
+}
 
-#task-container {
-    /* margin-bottom: 20px; This margin moved to time-progress-bar-container */
-    position: relative; 
-    height: 3rem; 
+/* --- Timer Controls and Settings Icon (MODIFIED) --- */
+
+#timer-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
     display: flex;
+    gap: 10px;
     justify-content: center;
-    align-items: center;
 }
-
-#task-input {
-    font-size: 1.2rem;
-    padding: 0.5rem;
-    width: 80%;
-    max-width: 400px;
-    border: none;
-    border-bottom: 2px solid var(--border-color);
-    text-align: center;
-    background: transparent;
-}
-#task-input:focus {
-    outline: none;
-    border-bottom-color: var(--fg-color);
-}
-
-#break-activity-icon img { /* Targeting the img inside */
-    width: 48px;
-    height: 48px;
-    filter: invert(0%); /* Default to black/grayscale */
-    opacity: 0.8;
-}
-body.is-break-time #break-activity-icon img {
-    filter: invert(0%); /* Keep it black on break time too, or specify a filter for green */
-}
-
 
 #timer-controls button {
-    font-size: 1.1rem;
-    padding: 10px 20px;
-    margin: 0 10px;
+    font-size: 0.85rem; /* Match left panel buttons */
+    padding: 8px 8px; /* Match left panel buttons */
+    margin: 0;
     border: 1px solid var(--fg-color);
     background-color: var(--bg-color);
     color: var(--fg-color);
     cursor: pointer;
-    min-width: 100px;
     transition: background-color 0.3s, color 0.3s;
+    white-space: nowrap;
 }
 
 #timer-controls button:hover {
@@ -326,11 +353,10 @@ body.is-break-time #timer-controls button:hover {
     color: var(--bg-color);
 }
 
-
-/* --- 设置 --- */
 #settings-icon {
     position: absolute;
-    top: 20px;
+    top: auto;
+    bottom: 20px;
     right: 20px;
     cursor: pointer;
 }
@@ -343,6 +369,38 @@ body.is-break-time #timer-controls button:hover {
     fill: var(--fg-color);
 }
 
+/* --- Gray-out "Focus Mode" --- */
+
+body.timer-active #task-input {
+    border-bottom-color: transparent; /* Hide original border when active */
+}
+body.timer-active #time-progress-bar-container {
+    display: block; /* Show progress bar when active */
+}
+
+body.timer-active #motivational-text,
+body.timer-active #timer-controls button,
+body.timer-active #settings-icon svg {
+    color: var(--text-very-light) !important;
+    border-color: var(--text-very-light) !important;
+    fill: var(--text-very-light) !important;
+    opacity: 0.6;
+}
+body.timer-active #timer-controls button:hover,
+body.timer-active #settings-icon:hover svg {
+    background-color: transparent !important;
+    color: var(--text-very-light) !important;
+    fill: var(--text-very-light) !important;
+}
+
+body.timer-active #info-panel {
+    opacity: 0.6;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none; /* Prevent interaction with info panel */
+}
+
+/* --- Modal and Other Styles --- */
+
 #settings-modal {
     position: fixed;
     top: 0;
@@ -350,14 +408,13 @@ body.is-break-time #timer-controls button:hover {
     width: 100%;
     height: 100%;
     background-color: var(--modal-bg);
-    display: flex;
+    display: none; /* Initially hidden */
     justify-content: center;
     align-items: center;
     z-index: 100;
 }
-
-#settings-modal.hidden {
-    display: none;
+#settings-modal:not(.hidden) {
+    display: flex;
 }
 
 .modal-content {
@@ -390,13 +447,11 @@ body.is-break-time #timer-controls button:hover {
     cursor: pointer;
 }
 
-/* --- Utility Class --- */
 .hidden {
     display: none !important;
 }
 
-
-/* 响应式布局 for Mobile */
+/* --- Responsive --- */
 @media (max-width: 768px) {
     #app-container {
         flex-direction: column;
@@ -417,24 +472,13 @@ body.is-break-time #timer-controls button:hover {
         padding: 40px 0; 
         min-height: 400px; 
     }
-    #motivational-text {
-        font-size: 1.5rem; /* Adjusted for mobile */
-        height: auto; /* Allow height to adjust for potentially longer text */
-        min-height: 2rem;
+    #motivational-text, #task-input, #task-input.has-content, #task-input::placeholder {
+        font-size: 1.5rem;
     }
     #timer-display {
         font-size: 6rem;
     }
-    #time-progress-bar-container {
-        width: 90%; /* Adjust width for mobile */
-        margin-top: 10px;
-        margin-bottom: 15px;
-    }
-    #task-container {
-        height: auto; 
-        min-height: 3rem;
-    }
-    #task-input {
+    #task-and-progress-container, #time-progress-bar-container {
         width: 90%;
     }
 }
