@@ -240,10 +240,11 @@ body.is-break-time #timer-display {
 }
 
 /* This is the new container for the input and the progress bar that will replace its underline */
+/* 调整宽度以增加输入框和进度条的显示空间 */
 #task-and-progress-container {
     position: relative;
-    width: 95%;
-    max-width: 1300px; /* Wider for ~20 chars */
+    width: 100%; /* 确保占据父容器的最大宽度 */
+    max-width: 1800px; /* 增加最大宽度限制 */
     margin: 20px auto;
 }
 
