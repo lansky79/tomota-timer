@@ -256,11 +256,13 @@ body.is-break-time #timer-display {
     height: auto; /* Allow height to be determined by content */
 }
 
+/* 调整文字下方输入框长度，根据用户反馈直接加宽 */
 #task-input {
     font-size: 2rem; /* Match motivational text */
     font-weight: 600; /* Match motivational text */
     padding: 0.5rem 1rem;
-    width: 100%;
+    width: 80vw; /* 使用视口宽度使其非常宽 */
+    max-width: 1600px; /* 设置一个最大宽度防止在超大屏幕上过宽 */
     border: none;
     border-bottom: 2px solid var(--border-color);
     text-align: center;
@@ -379,24 +381,20 @@ body.timer-active #time-progress-bar-container {
     display: block; /* Show progress bar when active */
 }
 
+/* 统一“专注模式”下的灰色效果 - 根据用户反馈，扩展到更多元素 */
 body.timer-active #motivational-text,
 body.timer-active #timer-controls button,
-body.timer-active #settings-icon svg {
+body.timer-active #settings-icon svg,
+body.timer-active #info-panel,
+body.timer-active #goal-text,
+body.timer-active #data-controls button {
     color: var(--text-very-light) !important;
     border-color: var(--text-very-light) !important;
-    fill: var(--text-very-light) !important;
-    opacity: 0.6;
-}
-body.timer-active #timer-controls button:hover,
-body.timer-active #settings-icon:hover svg {
-    background-color: transparent !important;
-    color: var(--text-very-light) !important;
     fill: var(--text-very-light) !important;
 }
 
 body.timer-active #info-panel {
-    opacity: 0.6;
-    transition: opacity 0.3s ease-in-out;
+    transition: color 0.3s ease-in-out;
     pointer-events: none; /* Prevent interaction with info panel */
 }
 

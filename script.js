@@ -47,6 +47,7 @@ let state = {
 
     isWorkTime: true,
     awaitingBreakStart: false,
+    lastTask: '',
     
     history: { PC: [], Mobile: [] }, 
     settings: {
@@ -314,6 +315,7 @@ function tick() {
             playSound(workEndSound);
             showSystemNotification('工作时间结束，点击“休息”开始放松');
             showNotification('工作结束，点击“休息”开始放松');
+            state.lastTask = taskInput.value.trim(); // 保存任务内容
             taskInput.value = '';
             taskInput.placeholder = '活动活动，休息一下眼睛吧';
             state.awaitingBreakStart = true;
@@ -437,7 +439,7 @@ function addRecord(type, duration = null) {
     const device = getDeviceType();
     let task;
     if (type === 'work') {
-        task = taskInput.value.trim() || '未命名任务';
+        task = state.lastTask || '未命名任务';
     } else if (type === 'break_start') {
         task = '开始休息';
     } else if (type === 'break') {
