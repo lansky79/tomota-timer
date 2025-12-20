@@ -33,6 +33,15 @@ const importFileInput = document.getElementById('import-file');
 const notificationElement = document.getElementById('notification');
 const appContainer = document.getElementById('app-container');
 
+// Edit Modal Elements
+const editModal = document.getElementById('edit-modal');
+const editTaskItem = document.getElementById('edit-task-item');
+const editTaskContentInput = document.getElementById('edit-task-content');
+const editDurationInput = document.getElementById('edit-duration');
+const saveEditBtn = document.getElementById('save-edit-btn');
+const cancelEditBtn = document.getElementById('cancel-edit-btn');
+
+
 // -------------------------------------------------------------------
 // State Management
 // -------------------------------------------------------------------
@@ -278,21 +287,23 @@ function render() {
         const li = document.createElement('li');
         li.dataset.id = record.id;
         li.dataset.device = record.device;
-        const taskPrefix = record.type === 'work' ? '[工作]' : (record.type === 'break_start' ? '[休息]' : '[结束]');
+        const taskPrefix = record.type === 'work' ? '[工作]' : '[休息]';
 
         let durationText = '';
-        if (record.type === 'work' && record.duration) {
+        if (record.duration) {
             const actualDurationMinutes = Math.round(record.duration / 60);
             durationText = ` (${actualDurationMinutes}分钟)`;
         }
-        
+
+        const canEdit = record.type === 'work' || record.type === 'break';
+
         li.innerHTML = `
             <div class="history-item-text">
-                ${taskPrefix} ${truncateChineseString(record.task, 20)}${durationText}
+                ${taskPrefix} ${record.type === 'work' ? truncateChineseString(record.task, 20) : record.task}${durationText}
                 <span class="device">于 ${record.date} (来自: ${record.device})</span>
             </div>
             <div class="history-item-controls">
-                <button class="edit-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"/><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"/></svg></button>
+                ${canEdit ? `<button class="edit-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"/><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"/></svg></button>` : ''}
                 <button class="delete-btn" title="删除"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg></button>
             </div>`;
         historyList.appendChild(li);
@@ -325,7 +336,7 @@ function tick() {
             clearInterval(state.timerInterval);
             state.timerInterval = null;
             playSound(breakEndSound);
-            addRecord('break');
+            addRecord('break', state.settings.breakMinutes * 60);
             showSystemNotification('休息时间结束，开始工作吧！');
             showNotification('休息结束，准备开始新的工作吧！');
             resetTimer(true);
@@ -380,7 +391,6 @@ function startBreak() {
     // 2. Reset state for the upcoming break
     state.awaitingBreakStart = false;
     clearTimeout(state.reminderTimeout);
-    addRecord('break_start'); 
     state.isWorkTime = false;
     state.totalDuration = state.settings.breakMinutes * 60;
     state.timeLeft = state.totalDuration;
@@ -440,10 +450,8 @@ function addRecord(type, duration = null) {
     let task;
     if (type === 'work') {
         task = state.lastTask || '未命名任务';
-    } else if (type === 'break_start') {
-        task = '开始休息';
     } else if (type === 'break') {
-        task = '结束休息';
+        task = '休息';
     }
     
     const newRecord = {
@@ -451,7 +459,7 @@ function addRecord(type, duration = null) {
         isoDate: now.toISOString(),
         date: now.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
         task, type, user: state.settings.username, device,
-        duration: type === 'work' ? duration : null,
+        duration: duration, // Duration is now passed for both work and break
     };
     if (!state.history[device]) state.history[device] = [];
     state.history[device].push(newRecord);
@@ -482,16 +490,52 @@ function handleHistoryClick(e) {
     }
     if (button.classList.contains('edit-btn')) {
         const recordToEdit = state.history[device].find(r => r.id === recordId);
-        if(recordToEdit) {
-            const newTask = prompt('请输入新的任务内容：', recordToEdit.task);
-            if (newTask !== null && newTask.trim() !== '') {
-                recordToEdit.task = newTask.trim();
-                saveData();
-                render();
+        if (recordToEdit) {
+            // Store record info on the modal
+            editModal.dataset.recordId = recordId;
+            editModal.dataset.device = device;
+
+            // Populate modal fields
+            if (recordToEdit.type === 'work') {
+                editTaskContentInput.value = recordToEdit.task;
+                editTaskItem.style.display = 'block';
+            } else { // For 'break'
+                editTaskItem.style.display = 'none';
             }
+            editDurationInput.value = Math.round(recordToEdit.duration / 60);
+
+            // Show the modal
+            editModal.classList.remove('hidden');
         }
     }
 }
+
+function saveEditHandler() {
+    const recordId = editModal.dataset.recordId;
+    const device = editModal.dataset.device;
+
+    if (!recordId || !device) return;
+
+    const recordToEdit = state.history[device].find(r => r.id === recordId);
+    if (!recordToEdit) return;
+
+    // Get new values
+    const newDuration = parseInt(editDurationInput.value, 10);
+
+    // Update values
+    if (recordToEdit.type === 'work') {
+        recordToEdit.task = editTaskContentInput.value.trim() || '未命名任务';
+    }
+    if (!isNaN(newDuration) && newDuration > 0) {
+        recordToEdit.duration = newDuration * 60;
+    }
+
+    // Save and re-render
+    saveData();
+    render();
+    editModal.classList.add('hidden');
+}
+
 
 function exportData() {
     const dataToSave = { settings: state.settings, history: state.history };
@@ -585,6 +629,9 @@ function init() {
     importBtn.addEventListener('click', () => importFileInput.click());
     importFileInput.addEventListener('change', importData);
     clearCacheBtn.addEventListener('click', clearCache);
+    // Edit Modal Listeners
+    saveEditBtn.addEventListener('click', saveEditHandler);
+    cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
 
     taskInput.addEventListener('input', () => {
         if (taskInput.value.trim() !== '') {
